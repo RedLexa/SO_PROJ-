@@ -8,6 +8,8 @@
 
 #include "betterassert.h"
 
+#define BUFFER_LEN 128
+
 tfs_params tfs_default_params() {
     tfs_params params = {
         .max_inode_count = 64,
@@ -242,10 +244,23 @@ int tfs_unlink(char const *target) {
 }
 
 int tfs_copy_from_external_fs(char const *source_path, char const *dest_path) {
-    (void)source_path;
-    (void)dest_path;
-    // ^ this is a trick to keep the compiler from complaining about unused
-    // variables. TODO: remove
-
-    PANIC("TODO: tfs_copy_from_external_fs");
-}
+         if(!valid_pathname(dest_path)) {
+             tfs_open(dest_path, TFS_O_CREAT);
+         }
+        int dest = tfs_open(dest_path, TFS_O_TRUNC);
+        FILE * initial = fopen(source_path,"r");
+        if (initial == NULL){
+            return -1;
+        }
+        char buffer[BUFFER_LEN];
+        memset(buffer,0,sizeof(buffer));
+        size_t read = fread(buffer, sizeof(char), strlen(buffer) + 1, initial);
+        while(read > 0){
+            tfs_write(dest,buffer, strlen(buffer)+ 1);
+            memset(buffer,0,sizeof(buffer));
+            read = fread(buffer, sizeof(char), strlen(buffer) + 1, initial);
+        }
+        tfs_close(dest);
+        fclose(initial);
+        return 0;
+    }
